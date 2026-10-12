@@ -1,0 +1,12 @@
+.venv/
+build/
+dist/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+runs/
+runtime*.json
+!examples/runtime*.json
+*.sqlite*
+*.safetensors
+*.gguf

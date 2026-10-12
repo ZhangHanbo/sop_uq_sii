@@ -1,0 +1,9 @@
+{
+  "model_path": "/absolute/path/to/Qwen3.8-27B-UD-Q4_K_M.gguf",
+  "tokenizer_path": "/absolute/path/to/Qwen3.8-27B-tokenizer",
+  "executable": "/absolute/path/to/llama-b11541/llama-server",
+  "launch_server": true,
+  "upstream_port": 18083,
+  "host": "127.0.0.1",
+  "port": 18080
+}

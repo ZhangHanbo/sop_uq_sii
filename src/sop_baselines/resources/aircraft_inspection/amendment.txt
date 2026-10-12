@@ -1,0 +1,14 @@
+Tool argument objects accept only fields declared in properties; required lists the mandatory fields. Extra arguments are rejected before execution. Use the current case identifiers and the session or ticket returned by its own prior tools.
+
+This is a synthetic teaching simulator. The upstream SOP was LLM-generated; no real-world regulatory compliance or aviation safety is certified.
+aircraft_ready is the administrative maintenance clearance returned by
+VerifyAircraftClearance, not a conjunction of the other checks. Mechanical success requires
+weight within +/-2% and matching serial numbers; these are necessary but not sufficient.
+Cross-check succeeds exactly when absolute component-weight deviation is <= 2% of the expected weight, installation-to-inspection age is in [0, 24 hours], and expected/installed serial numbers match. All boundaries are inclusive.
+Read all seven services including the three report services. Report reads retrieve existing
+outcomes and do not create reports; report applicability is distinct from a service return.
+updateMaintenanceRecord records the SOP maintenance update. Return exactly:
+aircraft_ready (JSON boolean), mechanical_inspection_result and electrical_inspection_result
+(success/fail/retest), component_incident_response, component_mismatch_response,
+cross_check_response and cross_check_reporting_response (success/failed/null).
+Do not add the unrelated VerifyShipment field from the illustrative SOP example.

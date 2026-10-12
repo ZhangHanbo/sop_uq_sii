@@ -1,0 +1,87 @@
+{
+  "schema_version": "2.1",
+  "context_limit": 8192,
+  "thinking": false,
+  "main_decoding": "greedy",
+  "sampling": {
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "top_k": 40
+  },
+  "max_output_tokens": 512,
+  "model_slot": "M27",
+  "model_id": "Qwen/Qwen3.8-27B",
+  "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+  "revision_scope": "Official tokenizer/config reference; quant publisher does not attest exact BF16 source commit",
+  "backend": "llama.cpp",
+  "quant_repo": "unsloth/Qwen3.8-27B-GGUF",
+  "quant_revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+  "quantization": "Unsloth Dynamic UD-Q4_K_M; nominal 4-bit, mixed tensor precision",
+  "server_build_info": "b11541-f2918cabb",
+  "server_spec": {
+    "source_commit": "f2918cabbffe8abf8e2a90c1c089085fa116c2cf",
+    "release": "b11541",
+    "total_slots": 4,
+    "n_ctx_per_slot": 8192,
+    "context_shift": "disabled in recorded launch command",
+    "kv_cache": "f16 K and V in recorded launch command",
+    "gpu_layers": "99 requested; verify all layers offloaded in server log",
+    "vision_input": false,
+    "speculative_decoding": false
+  },
+  "files": [
+    {
+      "file": "Qwen3.8-27B-UD-Q4_K_M.gguf",
+      "bytes": 16464440224,
+      "sha256": "322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482"
+    }
+  ],
+  "tokenizer_files": [
+    {
+      "file": "chat_template.jinja",
+      "bytes": 8952,
+      "sha256": "c3cf9e34abf4f9e36c2d72165aa9c132d3e2a725b6c2586aaa3a8af9d7a81041"
+    },
+    {
+      "file": "config.json",
+      "bytes": 4312,
+      "sha256": "191e0af232104ed8b65258cf3fb2b842e288008baca7633c11b82a1ac7203aab"
+    },
+    {
+      "file": "tokenizer.json",
+      "bytes": 12809320,
+      "sha256": "0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3"
+    },
+    {
+      "file": "tokenizer_config.json",
+      "bytes": 17928,
+      "sha256": "b11349aafa7cdc6a320767cf7ceb29ed82f7eda5d65e8e0819e76f0ce947bf27"
+    }
+  ],
+  "generation_policy": {
+    "version": "explicit-generation-2.1",
+    "num_beams": 1,
+    "num_return_sequences": 1,
+    "repetition_penalty": 1.0,
+    "no_repeat_ngram_size": 0,
+    "min_length": 0,
+    "min_new_tokens": 0,
+    "length_penalty": 1.0,
+    "early_stopping": false,
+    "use_cache": true,
+    "renormalize_logits": false,
+    "remove_invalid_values": false,
+    "return_dict_in_generate": false,
+    "output_scores": false,
+    "output_logits": false,
+    "output_attentions": false,
+    "output_hidden_states": false,
+    "forced_bos_token_id": null,
+    "forced_eos_token_id": null,
+    "bad_words_ids": null,
+    "suppress_tokens": null,
+    "begin_suppress_tokens": null,
+    "stop_strings": null,
+    "sequence_bias": null
+  }
+}

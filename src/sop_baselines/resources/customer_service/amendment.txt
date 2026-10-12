@@ -1,0 +1,15 @@
+Tool argument objects accept only fields declared in properties; required lists the mandatory fields. Extra arguments are rejected before execution. Use the current case identifiers and the session or ticket returned by its own prior tools.
+
+Invalid account, failed authentication or ineligibility => FAILED.
+An outage within 10 miles => PENDING_ACTION. For non-payment suspension first call
+transferAccountsPayable, check the existing payment and suspension release records;
+do not simulate a payment. A diagnostic observation requires the prior eligible-account
+and outage checks. At least one abnormal pre KPI is needed for diagnosis.
+Let D(L,J,B;P)=max(L/100-1,0)+max(J/30-1,0)+max(1-B/P,0), where P is subscribed Mbps.
+After troubleshooting use RESOLVED exactly when Dpre>0, Dpost<=0.5*Dpre,
+Lpost<=Lpre, Jpost<=Jpre and Bpost>=Bpre; otherwise ESCALATED.
+Values lie on a 0.1 grid and equality qualifies. There is no extra initial-good early stop.
+executeTroubleshooting must supply exactly the distinct root_causes returned by the prior diagnostic call; wrong, omitted or duplicate causes are rejected before repair. A canonical repair changes pre to post once; repeats do not repair again. Root cause does
+not uniquely determine repair success. Escalation returns a request receipt, not proof
+of necessity. Choose the escalation team by issue nature and record status with updateTicket.
+The sole main target is final_resolution_status: FAILED/PENDING_ACTION/RESOLVED/ESCALATED.

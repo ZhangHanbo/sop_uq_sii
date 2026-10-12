@@ -1,0 +1,9 @@
+Tool argument objects accept only fields declared in properties; required lists the mandatory fields. Extra arguments are rejected before execution. Use the current case identifiers and the session or ticket returned by its own prior tools.
+
+The public source text supplies business context; it is not a clean score table.
+Read scoring tools to obtain observations. Scores are integers 1..5; 0/null means missing.
+An unregistered product (product_not_found) or invalid reference gives Unable to Decide.
+With more than two missing scores use Unable to Decide. Otherwise impute each missing
+score with the maximum observed valid score, and sum all four. Sum 4..7 => Hazard Class A,
+8..12 => Hazard Class B, 13..16 => Hazard Class C, 17..20 => Hazard Class D.
+The sole output target is hazard_class with those values or Unable to Decide.
