@@ -1,48 +1,62 @@
-# SOP-UQ 考生项目（服务协议 2.2；主数据 2.1）
+# SOP-UQ 考生项目（服务协议 2.2，主数据格式 2.1）
 
-本项目可独立安装，提供公开数据、Qwen 部署、考官服务 SDK、baseline 和结果包工具。
-先读 [题目说明](docs/problem_statement.md)、[业务判定规则](public_specs/business_rules.md) 及各域 `public_specs/*/sop.txt`。
-公开训练池标签可用于训练、校准、验证和调参；`data/test/cases.jsonl` 没有测试标签。所有工具与 oracle 都在考官服务运行。`dev` 的 120 例验证题允许反复核验，正式测试只开放原定 72 例 oracle。
+本项目包含公开数据、Qwen 模型服务、考官服务客户端、baseline 方法和提交打包工具，可以单独安装。
 
-## 安装与运行
+先阅读[题面](docs/problem_statement.md)和[详细规则](docs/rules.md)，再看[业务规则](public_specs/business_rules.md)和各业务域的 `public_specs/*/sop.txt`。训练数据的标签可以用于训练、校准、验证和调参；`data/test/cases.jsonl` 不含标签。所有工具和 oracle 都在考官服务上运行。`dev` 的 120 道题可以不限次数地调用 oracle；正式测试只有 72 道交互题可以调用 oracle。
 
-Python 3.11+。在本目录运行：
+## 安装与部署模型
+
+需要 Python 3.11 及以上。在本目录运行：
 
 ```bash
 bash scripts/bootstrap.sh
 source .venv/bin/activate
-# 仅部署 Qwen 的机器需要模型依赖；远程考生客户端不需要权重或 transformers。
-# 推荐另建 Python 3.12.7 模型环境；匹配现有 CUDA 12.8 环境时先安装锁定版本：
+# 只有部署 Qwen 的机器需要安装模型依赖；只连接远程服务的考生客户端不需要权重或 transformers。
+# 建议另建一个 Python 3.12.7 环境部署模型；如果使用 CUDA 12.8，先安装锁定的版本：
 pip install -r requirements-model.lock.txt
 pip install -e '.[model]'
 sop-qwen download --profile model_profiles/M9.json --destination /path/to/Qwen3.5-9B
-# 将 examples/runtime.M9.json 中的 model_path 改为实际路径，另存 runtime.json。
+# 把 examples/runtime.M9.json 中的 model_path 改成实际路径，另存为 runtime.json。
 export SOP_MODEL_TOKEN='replace-with-a-separate-model-token-at-least-24-characters'
 sop-qwen verify --profile model_profiles/M9.json --runtime runtime.json
 sop-qwen serve --profile model_profiles/M9.json --runtime runtime.json
 ```
 
-考官可安装同一份 wheel 或项目运行上述服务，作为公用 Qwen 端点。HTTP 客户端仅需 URL 和独立模型 token；不检查远端机器的本地文件。
-`/health` 提供可用性检查，`/v1/profile` 与 `/v1/generate` 需要 Bearer token。profile hash 用于配置一致性检查，不构成远程模型身份认证或完整推理次数证明。
-只有服务明确表示尚未执行推理的容量拒绝，客户端才最多尝试三次。超时、未知服务错误或执行后的失败不会自动重试，避免重复生成或悄悄换一份答案。
-M9 的公开锁对应 Qwen3.5-9B BF16；M27 锁对应指定 Qwen3.8-27B GGUF 和 llama.cpp b11541。以冻结评测配置允许的模型槽位为准；默认正式评测仅 M9。
-模型依赖固定为 Torch 2.8.0、Transformers 5.19.0 等版本，完整版本见 `requirements-model.lock.txt`（Python 3.12.7 / CUDA 12.8）。基础客户端支持 Python 3.11+；锁文件中的 NumPy 2.5.3 需要 Python 3.12+。服务启动时校验权重、tokenizer/config 的文件大小与 SHA-256；CPU 单元测试不加载模型。
+考官也可以用同一套代码部署公共 Qwen 服务。客户端只需要服务地址和模型服务的 token，不检查远端机器上的文件。
 
-M27 使用 `examples/runtime.M27.json`。先安装锁定 llama.cpp；`sop-qwen download --profile model_profiles/M27.json --destination /path/to/M27` 同时下载 GGUF 与锁定 tokenizer/config。runtime 的 `model_path` 必须填写 `/path/to/M27/Qwen3.8-27B-UD-Q4_K_M.gguf`，`tokenizer_path` 填写 `/path/to/M27/tokenizer`。`launch_server=true` 由当前前台进程管理自己的 llama.cpp 子进程；设为 false 并指定 `upstream_url` 可连接本机已部署实例，仍核验其路径、权重、tokenizer/config 和 build。M27 revision 仅指 tokenizer/config 来源，量化发布者未证明其精确 BF16 源提交。
+- `/health` 用于检查服务是否可用；`/v1/profile` 和 `/v1/generate` 需要 Bearer token。
+- profile hash 只用于检查配置是否一致，不能证明远端运行的确实是这个模型，也不能证明调用次数。
+- 只有当服务明确表示请求还没开始推理就因容量不足被拒绝时，客户端才会重试，最多尝试三次。超时、未知错误或推理之后的失败都不重试，以免重复生成或换成另一份答案。
+- 模型依赖版本固定为 Torch 2.8.0、Transformers 5.19.0 等，完整列表见 `requirements-model.lock.txt`（Python 3.12.7，CUDA 12.8）。客户端支持 Python 3.11 及以上；锁定的 NumPy 2.5.3 需要 Python 3.12 及以上。
+- 服务启动时校验权重、tokenizer 和 config 文件的大小与 SHA-256。CPU 单元测试不加载模型。
 
-在另一个终端连接考官：
+M9 对应 Qwen3.5-9B BF16；M27 对应指定的 Qwen3.8-27B GGUF 和 llama.cpp b11541。可用的模型以考官的评测配置为准，正式考试默认只用 M9。
+
+使用 M27 时：
+
+1. 安装锁定版本的 llama.cpp。
+2. 运行 `sop-qwen download --profile model_profiles/M27.json --destination /path/to/M27`，同时下载 GGUF 和锁定的 tokenizer/config。
+3. 以 `examples/runtime.M27.json` 为模板，`model_path` 填 `/path/to/M27/Qwen3.8-27B-UD-Q4_K_M.gguf`，`tokenizer_path` 填 `/path/to/M27/tokenizer`。
+4. `launch_server=true` 时由当前进程启动并管理 llama.cpp；设为 false 并指定 `upstream_url` 时连接本机已运行的 llama.cpp，启动时仍会核对模型路径、权重、tokenizer/config 和版本号。
+
+M27 的 revision 只指 tokenizer/config 的来源；量化版本的发布者没有说明它对应的 BF16 权重的确切版本。
+
+## 训练、正式测试与提交
+
+在另一个终端连接考官服务：
 
 ```bash
 export SOP_EXAMINER_TOKEN='your-participant-token'
 export SOP_MODEL_TOKEN='your-self-hosted-or-shared-model-token'
 sop-candidate spec --examiner-url http://127.0.0.1:8766
-# 1. 采集公开训练池的初始轨迹；其中的训练、校准和选择数据严格分开使用。
+
+# 1. 在训练集上采集初始轨迹，然后拟合风险模型。train、cal_fit、cal_select 分开使用。
 sop-candidate train --examiner-url http://127.0.0.1:8766 --model-url http://127.0.0.1:18080 \
   --profile model_profiles/M9.json --method-id initial --uq self_report --output runs/initial
 sop-candidate fit --data data/train --snapshots runs/initial/M9-initial.jsonl \
   --selection-snapshots runs/initial/M9-initial.jsonl --output runs/initial-calibrator.json
 
-# 2. 采集同一查询策略的公开后验轨迹，然后分别拟合、选择阈值。
+# 2. 用同一个查询策略在训练集上采集查询后的轨迹，再拟合查询后的风险模型并选阈值。
 sop-candidate train --examiner-url http://127.0.0.1:8766 --model-url http://127.0.0.1:18080 \
   --profile model_profiles/M9.json --method-id posterior-active --uq calibrated_disagreement \
   --calibrator runs/initial-calibrator.json --policy active --fixed-count 1 \
@@ -53,64 +67,73 @@ sop-candidate fit --data data/train --snapshots runs/initial/M9-initial.jsonl \
   --posterior-selection-snapshots runs/posterior/M9-posterior.jsonl \
   --output runs/final-calibrator.json
 
-# 3. 正式服务须由考官预先加载固定初始轨迹。
+# 3. 正式测试。考官需要事先装好固定的初始轨迹。
 sop-candidate run --examiner-url http://127.0.0.1:8766 --model-url http://127.0.0.1:18080 \
   --profile model_profiles/M9.json --method-id calibrated-active --uq calibrated_disagreement \
   --calibrator runs/final-calibrator.json --policy active --fixed-count 1 --output runs/test
 sop-candidate submit --examiner-url http://127.0.0.1:8766 runs/test/submission.zip
 ```
 
-同一条 run 命令和同一输出目录可恢复中断。这个静态 baseline 会核对本地配置以防误续跑；自定义在线方法或另一配置可以通过公开客户端操作同一考试会话，配置检查不构成服务端调参禁令。保留 `state.json`：它只含本方允许观察的记录、模型轨迹与回执，不含服务端私有状态。
+`run` 中断后，用同一条命令和同一个输出目录重新运行即可继续。请保留输出目录中的 `state.json`，其中只有你能看到的记录、模型轨迹和回执，不含服务端的私有数据。runner 会检查本地配置是否与之前一致，防止把两次不同的运行混在一起；这只是 baseline 的本地检查，自己的方法可以随时调整，并通过同一个考试会话继续操作。
 
-正式运行使用考官固定的初始答案、证据和共享采样，不能重做或改写初始答案。第一次查询本题 oracle 前，runner 封存本题所有初始评分槽位的风险；不要求全试卷同时封存。允许跨题分析和在线调整。换方法、后续模型、输出目录或提交版本，均继续使用同一考生、试卷的证据与费用账本。
+正式测试使用考官固定的初始答案、调用记录和共享采样，不能重新生成或修改初始答案。runner 在某道题第一次调用 oracle 之前，会先锁定这道题所有初始模型的风险；不需要一次锁定全部题目。可以利用其他题目的信息，也可以在考试中更新方法。更换方法、后续模型、输出目录或提交版本，都继续使用同一个考生、同一张试卷的调用记录和费用。
 
-`run` 生成答案草稿和 `submission.zip`，不会自动提交或交卷。正式测试最多接收五个不同的有效完整版本，前四次可以继续修改和查询，第五次自动交卷。重复传输同一逻辑答案不占次数。`pack --run-id ... --output ...` 可根据当前服务端草稿重新打包。
+`run` 只生成答案草稿和 `submission.zip`，不会自动提交或交卷。正式测试最多接收 5 个不同的版本：前 4 个版本提交后还可以继续修改和查询，第 5 个版本被接收后自动交卷。重复上传同一份答案不计次数。`pack --run-id ... --output ...` 可以按服务端当前的草稿重新打包。
 
 ```bash
-# 上传当前版本；加 --close 可在成功接收后提前交卷。
+# 提交当前版本；加 --close 表示提交成功后立即交卷。
 sop-candidate submit --examiner-url http://127.0.0.1:8766 runs/test/submission.zip
-# 已经上传有效版本后，也可单独交卷。
+# 已提交过至少一个版本后，也可以单独交卷。
 sop-candidate close --examiner-url http://127.0.0.1:8766 --run-id <run_id>
+```
 
-# dev 验证练习不占正式测试额度，可反复重开和核验。
+正式测试期间，提交后返回 `withheld`，表示已接收但还没有公布成绩，不是提交失败。成绩公布后，用 `sop-candidate report --examiner-url ... <evaluation_id>` 读取报告；公布后不能再修改或重新报名。测试费用按交卷时的全部调用计算，包括最后一次提交之后的调用。
+
+## dev 练习
+
+```bash
+# dev 练习不占用正式测试的次数和额度，可以反复进行。
 sop-candidate practice --examiner-url http://127.0.0.1:8766 \
   --model-url http://127.0.0.1:18080 --profile model_profiles/M9.json \
   --method-id dev-practice --uq self_report --policy all_facts --threshold 0.5 \
   --output runs/dev
+sop-candidate submit --examiner-url http://127.0.0.1:8766 runs/dev/submission.zip
 ```
 
-自定义方法可用 `sop-candidate rpc --examiner-url ... <operation> --body-file request.json` 调用公开的 `initial`、`final`、`checkpoint_initial` 和 `restart_dev` 等操作；请求文件不包含凭据。`--continuation-model-url` 可选择另一个后续求解服务，不改变官方初始评分槽位。已查询本题真值的事前风险永远固定，未核验题可以在后续版本中更新。
+练习时 oracle 不限次数、不受预算限制，也不需要先锁定风险，提交后立即返回成绩。每道题的普通工具仍限 24 次。要重新开始，可以换一个 `--method-id`，或者调用 `restart_dev`。训练运行的次数上限（见 `spec` 返回的 `max_train_runs` 和 `max_train_evaluations`）不适用于 dev 练习。
 
-`withheld` 表示整场考试尚未公布分数，不是提交失败。公布后用 `sop-candidate report --examiner-url ... <evaluation_id>` 读取报告；此后不能修改或重新报名。验证练习允许即时评估，训练运行的保护配额不适用于独立 `dev` 练习入口。测试账单计入交卷时全部实际调用，即使某次查询发生在最后一次上传之后。
+## 自己实现方法
 
-## Baseline 的确切含义
+可以用 `sop-candidate rpc --examiner-url ... <operation> --body-file request.json` 直接调用服务接口，例如 `initial`、`final`、`checkpoint_initial` 和 `restart_dev`。请求文件中不要写凭据。`--continuation-model-url` 可以指定另一个模型服务来继续作答，不影响考官固定的初始答案。调用过 oracle 的题，查询前的风险不能再改；没调用过的题可以在后续版本中修改。
 
-所附 baseline 使用同一个远程工具 agent，初始最多 20 次主调用、整个案例最多 32 次；有合法初始提案时额外使用恰好 4 次无工具共享采样。这些是参考与 baseline 的配置，考生可以自行选择后续求解方法。正常格式的辅助报告可保留在本地轨迹，评分答案只含主目标字段。
+## Baseline 说明
 
-| UQ 方法 | 实现与训练来源 |
+所附 baseline 使用同一个调用工具的 agent：初始阶段最多调用模型 20 次，整道题最多 32 次；给出合法初始答案后，再额外采样 4 次（不调用工具）。这些是参考 agent 和 baseline 的设置，你可以用别的方法继续作答。模型输出中多余的报告字段会保留在本地轨迹里，评分只看主评分字段。
+
+| 风险估计方法 | 说明 |
 | --- | --- |
-| `self_report` | 模型自报错误概率；缺失时按失败提交 |
-| `disagreement` | 四次采样相对初始答案的不一致数，含非法样本，使用 `(d+1)/(4+2)` 平滑 |
-| `historical_failure` | 公开 `train` 标签计算的分域平滑错误率 |
-| `calibrated_self_report` / `calibrated_disagreement` | 公开 `cal_fit` 标签上的正则 logistic 概率校准 |
-| `supervised` | 公开 `train` 标签上的 logistic 回归；特征仅为自报、采样不一致、缺失、已观察工具冲突与调用统计 |
+| `self_report` | 模型自报的出错概率；缺失时按失败提交 |
+| `disagreement` | 记 4 次采样中与初始答案不一致（含不合法）的次数为 d，取 `(d+1)/(4+2)` |
+| `historical_failure` | 按业务域计算的 `train` 错误率（加平滑） |
+| `calibrated_self_report` / `calibrated_disagreement` | 在 `cal_fit` 上用带正则的 logistic 回归做概率校准 |
+| `supervised` | 在 `train` 上训练的 logistic 回归；特征只有自报概率、采样不一致率、是否缺失、已观测到的工具读数冲突和调用次数 |
 
-静态校准器绑定数据版本、模型 profile、提示词、消息整理规则、调用上限、采样方式、风险估计及公共协议实现，还绑定实际预算和费用。影响轨迹或预测的配置变化需要重采或重拟合；旧产物不能未经校验混用。该检查不禁止自定义在线方法更新参数。工具回执在输入模型前统一压紧格式，并删除传输编号，保留业务值、时间、来源、观察编号和费用。原始回执仍保存在审计记录中。
+`fit` 生成的校准文件记录了生成训练轨迹时的数据版本、模型配置、提示词、消息整理方式、调用上限、采样方式、风险估计代码、公共协议代码、预算和费用。影响轨迹或预测的任何一项变化后，需要重新采集轨迹或重新拟合；程序会拒绝不匹配的旧校准文件。这个检查不限制你自己的在线方法更新参数。工具回执在交给模型之前会统一格式，并删掉传输用的编号，保留业务值、时间、数据源、记录编号和费用；原始回执保存在本地记录中。
 
-查询后的两个风险有各自的校准模型，使用公开 `cal_fit` 查询轨迹拟合，不能用初始校准器冒充。实际追加查询前检查查询策略与后验校准器是否匹配；没有查询时沿用相应的事前估计，不要求不存在的后验样本。未经校准的 `self_report` 前后使用自报；可用 `--uq self_report --policy fixed --threshold 0.5` 运行启发式对照。
+查询后的两个风险各有一个校准模型（保存在同一个校准文件中），用训练集上 `cal_fit` 部分的查询轨迹拟合，不能用查询前的校准模型代替。只有在实际要查询时，程序才检查查询策略和校准文件是否匹配；某题没有查询时，直接沿用查询前的风险。不经校准的 `self_report` 在查询前后都用模型自报的概率；可以用 `--uq self_report --policy fixed --threshold 0.5` 运行这个启发式对照。
 
-默认阈值来自公开 `cal_select` 按普通错误、严重错误和转人工的实际代价选择；`--threshold` 是显式覆盖，不能宣称最优。`diagnostics.json` 会报告风险值个数、查询比例和全部转人工等退化情况。无法产生合法答案的阶段按失败提交，不补造答案或概率。
+默认阈值在 `cal_select` 上按普通错误、严重错误和转人工的实际代价选取；`--threshold` 用于手动指定，不能声称是最优值。`diagnostics.json` 会报告不同风险值的个数、查询比例、是否全部转人工等情况。无法给出合法答案时按失败提交，不会编造答案或概率。
 
-| 控制器 | 查询及终局 |
+| 策略 | 查询与决策 |
 | --- | --- |
-| `no_oracle` | 无 oracle，AUTO |
-| `all_defer` | 无 oracle，DEFER；仍提交影子答案 |
-| `threshold` | 无 oracle，风险达到阈值则 DEFER |
-| `fixed` | 按公开固定字段顺序查询至 `fixed-count`，续跑后按阈值决策 |
-| `all_facts` | 查询当前合法且预算可承受的所有可核验字段，再续跑；不请求完整状态 |
-| `active` | 初始风险达到阈值才查询；按已观察冲突、缺失、数值分散度排序选择至 `fixed-count`，续跑后按阈值决策 |
+| `no_oracle` | 不查询，全部自动处理 |
+| `all_defer` | 不查询，全部转人工；仍然提交答案 |
+| `threshold` | 不查询，风险不低于阈值时转人工 |
+| `fixed` | 按固定字段顺序查询 `fixed-count` 个字段，继续作答后按阈值决策 |
+| `all_facts` | 查询当前所有可查、且预算允许的字段，再继续作答 |
+| `active` | 初始风险不低于阈值时才查询；按已观测读数的冲突、缺失和数值离散程度排序，查询前 `fixed-count` 个字段，继续作答后按阈值决策 |
 
-`active` 是公开启发式，不宣称估计最优查询的信息价值。工具和 oracle 费用由考官计量。自部署调用次数由本 runner 记录，是规范与申报，考官不能据此证明没有额外本地调用。
+`active` 是启发式方法，不保证查询的信息价值最优。工具和 oracle 的费用由考官服务统计；自己部署模型时的调用次数由 runner 记录，只作为申报，考官无法据此证明没有额外的本地调用。
 
 ## 公开报告检查
 
@@ -118,18 +141,18 @@ sop-candidate practice --examiner-url http://127.0.0.1:8766 \
 sop-candidate check-public-report technical_report.md
 ```
 
-该命令仅在本地检查文本中的凭据、敏感字段和明显测试核验对应表，不查询服务或私有标签，不返回疑似凭据的原文。发现问题或不能扫描的格式时退出码为 2；通过检查仍需人工复核。给考官的私有复现材料与公开报告分开，不能把测试真值或他人的材料放入公开报告。
+这个命令只在本地检查文本中是否有凭据、敏感字段，以及明显的"测试题编号对应 oracle 返回值"的表格；不连接服务，也不使用任何隐藏标签，输出中不会重复疑似凭据的原文。发现问题或遇到无法检查的文件格式时，退出码为 2。检查通过后仍需要人工复核。给考官的复现材料与公开报告分开，公开报告中不能出现测试题的真实值或其他考生的材料。
 
-## 验证
+## 测试
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-测试使用明确标识的 fake backend，只验证协议、HTTP 鉴权、远程客户端、校准与重试行为；不是 Qwen 推理效果实验。这些测试不代表模型运行成绩。
+测试使用明确标注的假模型，只检查协议、HTTP 鉴权、客户端、校准和重试逻辑，不代表 Qwen 的推理效果。
 
-## 数据与复现边界
+## 数据与发布
 
-`data/` 是主数据；`challenge_data/` 是 72 例独立边界检查。两者使用不同的数据版本，不合并排名。题目是教学模拟，不提供真实危险品、适航或维修决策依据；各域声明随 `public_specs/` 及安装资源完整提供。
+`data/` 是主数据；`challenge_data/` 是 72 个独立的边界案例。两者的数据版本不同，成绩不合并。本题是教学模拟，结果不能用于真实的危险品、适航或维修决策；各业务域的声明随 `public_specs/` 和安装资源一起提供。
 
-发布包由明确的 `PUBLIC_RELEASE_FILES.json` 列表生成。新增源码、说明或配置须先审查后加入列表；误放的凭证文件会使打包失败。发布包内部 manifest 记录每个文件的哈希。
+发布包按 `PUBLIC_RELEASE_FILES.json` 中列出的文件生成。新增源码、说明或配置时，需要先审查再加入列表；如果目录中混入了未列出的文件（例如凭据文件），打包会失败。发布包中的 manifest 记录了每个文件的哈希。

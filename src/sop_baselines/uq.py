@@ -184,8 +184,8 @@ class Logistic:
 class Calibrator:
     """All fitted baseline estimators of one model profile and data release.
 
-    The artifact records the agent contract, the estimator implementation and the
-    exact training trajectories, and refuses trajectories produced otherwise.
+    The saved calibration file records the agent fingerprint, the estimator code
+    and the exact training trajectories, and rejects trajectories produced otherwise.
     """
 
     def fit(self, cases, snapshots, *, posterior_snapshots=None):
@@ -359,7 +359,7 @@ class Calibrator:
         check_evaluation_contract(snapshot, self.evaluation_contract)
 
     def check_estimator(self):
-        """Reject use of this artifact after ``uq.py`` has been modified."""
+        """Reject this calibration file after ``uq.py`` has been modified."""
         if self.estimator_contract != risk_estimator_contract():
             raise ValueError("Risk estimator implementation changed; refit calibration")
 
@@ -419,7 +419,7 @@ class Calibrator:
         return raw_risk(snapshot, method)
 
     def to_dict(self):
-        """Serialise the artifact; ``load`` restores and re-checks it."""
+        """Serialise the calibration file; ``load`` restores and re-checks it."""
         return {
             "version": "2.2",
             "feature_names": list(FEATURES),
@@ -451,7 +451,7 @@ class Calibrator:
 
     @classmethod
     def load(cls, path):
-        """Load a saved artifact, rejecting other versions and changed code."""
+        """Load a saved calibration file, rejecting other versions and changed code."""
         value = json.loads(Path(path).read_text())
         if value.get("version") != "2.2" or value.get("feature_names") != list(
             FEATURES
@@ -555,7 +555,7 @@ def raw_risk(snapshot, method="disagreement"):
             snapshot["p_error"] if valid_probability(snapshot.get("p_error")) else None
         )
     raise ValueError(
-        "This UQ method needs an artifact fitted on public training labels"
+        "This UQ method needs a calibration file fitted on public training labels"
     )
 
 

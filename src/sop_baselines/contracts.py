@@ -1,6 +1,6 @@
-"""Bind trajectories and fitted artifacts to the exact code that produced them.
+"""Record which code and settings produced each trajectory and calibration file.
 
-Three independent bindings exist:
+Three separate fingerprints are kept:
 
 * the agent contract covers the fixed reference agent (prompt text, agent loop,
   evidence projection, call limits and sampling). The examiner freezes formal
@@ -27,17 +27,18 @@ _ROOT = Path(__file__).parent
 
 
 def protocol_fingerprint():
-    """Bind executable public validators, not only their declared version."""
+    """Hash the public protocol code itself, not only its version string."""
     return digest(Path(sop_protocol.__file__).read_text())
 
 
 def evaluation_contract(spec, *, split="train"):
-    """Effective public conditions used by a static baseline artifact.
+    """Service settings that a saved calibration file depends on.
 
-    Human-readable profile IDs, deadlines and run quotas are deliberately not
-    distribution fingerprints. Costs, per-case limits and public interface
-    semantics are. Dev practice has a separate explicit unlimited quota policy.
-    This check constrains reuse of a fitted artifact, not online algorithms.
+    Costs, per-case limits and the public tool and oracle schemas change the
+    collected trajectories, so they are recorded. Profile names, deadlines and
+    run quotas do not, so they are left out. Dev practice has its own unlimited
+    oracle and budget settings. The check only stops a saved calibration file
+    from being reused under different settings; online methods are not limited.
     """
     required = (
         "costs",

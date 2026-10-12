@@ -112,7 +112,7 @@ class LlamaBackend:
             != Path(runtime["model_path"]).expanduser().resolve()
         ):
             raise ValueError(
-                "llama.cpp server model differs from locally verified artifact"
+                "llama.cpp server model differs from the locally verified model file"
             )
         if props.get("build_info") != profile["server_build_info"]:
             raise ValueError("llama.cpp build differs from public model profile")

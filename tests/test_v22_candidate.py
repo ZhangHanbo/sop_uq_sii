@@ -1,4 +1,4 @@
-"""Public-only regressions for checkpoints, artifact binding and report checks.
+"""Public-only regressions for risk locking, calibration-file checks and report checks.
 
 The fake model below is a protocol fixture, never evidence of real-model quality.
 Real service transaction and five-version tests live on the examiner side.
@@ -64,8 +64,8 @@ def test_effective_cost_budget_and_schema_binding(tmp_path):
 def test_shared_protocol_implementation_invalidates_both_contracts(tmp_path):
     cases, snapshots = calibration_fixture()
     fitted = Calibrator().fit(cases, snapshots)
-    artifact = tmp_path / "fit.json"
-    fitted.save(artifact)
+    saved = tmp_path / "fit.json"
+    fitted.save(saved)
     before_agent = agent_contract(FakeModel.profile_hash)
     before_risk = risk_estimator_contract()
     read = Path.read_text
@@ -82,7 +82,7 @@ def test_shared_protocol_implementation_invalidates_both_contracts(tmp_path):
         assert agent_contract(FakeModel.profile_hash) != before_agent
         assert risk_estimator_contract() != before_risk
         with pytest.raises(ValueError, match="estimator implementation"):
-            Calibrator.load(artifact)
+            Calibrator.load(saved)
 
 
 def test_all_auto_active_needs_no_posterior(tmp_path):
@@ -123,7 +123,7 @@ def test_fit_cli_accepts_actual_empty_posterior_files(tmp_path):
     initial.write_text("".join(json.dumps(s) + "\n" for s in snapshots))
     empty = tmp_path / "empty-posterior.jsonl"
     empty.write_text("")
-    artifact = tmp_path / "artifact.json"
+    saved = tmp_path / "calibration.json"
     result = subprocess.run(
         [
             sys.executable,
@@ -141,14 +141,14 @@ def test_fit_cli_accepts_actual_empty_posterior_files(tmp_path):
             "--posterior-selection-snapshots",
             str(empty),
             "--output",
-            str(artifact),
+            str(saved),
         ],
         capture_output=True,
         text=True,
         check=True,
     )
     assert json.loads(result.stdout)["posterior_calibration_count"] == 0
-    loaded = Calibrator.load(artifact)
+    loaded = Calibrator.load(saved)
     assert loaded.posterior == {}
     assert loaded.selections
 

@@ -1,4 +1,4 @@
-"""Render the public Markdown statement to self-contained TeX and PDF.
+"""Render the public Markdown documents (problem statement and rules) to TeX and PDF.
 
 Requires pandoc (or pypandoc with its bundled pandoc), XeLaTeX, and the named
 system fonts. This script reads no examiner data or configuration.
@@ -29,18 +29,15 @@ def render(source: Path, *, cjk_font: str = "AR PL SungtiL GB") -> Path:
     source = source.resolve()
     markdown = source.read_text(encoding="utf-8")
     title, body = markdown.split("\n", 1)
-    if not title.startswith("# ") or len(re.findall(r"^## [1-6]\. ", body, flags=re.M)) != 6:
-        raise ValueError("Expected one statement title and six numbered sections")
+    if not title.startswith("# ") or not re.search(r"^## [0-9]+\. ", body, flags=re.M):
+        raise ValueError("Expected a title line and numbered sections")
     latex_body = subprocess.run([pandoc, "--from", "markdown+tex_math_single_backslash", "--to", "latex",
                                 "--shift-heading-level-by=-1"], input=body, text=True,
                                check=True, capture_output=True).stdout
-    # Give the target-field table space proportional to the actual content.
-    latex_body = latex_body.replace(r"\real{0.5000}", r"\real{0.2200}", 1)
-    latex_body = latex_body.replace(r"\real{0.5000}", r"\real{0.7800}", 1)
     latex_body = latex_body.replace(r"{\def\LTcaptype", r"{\small\def\LTcaptype")
     latex_title = subprocess.run([pandoc, "--from", "markdown", "--to", "latex"],
                                 input=title[2:], text=True, check=True, capture_output=True).stdout.strip()
-    preamble = r'''% Generated from problem_statement.md by scripts/render_statement.py.
+    preamble = r'''% Generated from SOURCE_NAME by scripts/render_statement.py.
 % Public statement only; edit the Markdown source, then render again.
 \documentclass[11pt,a4paper]{article}
 \usepackage[margin=20mm]{geometry}
@@ -84,11 +81,13 @@ def render(source: Path, *, cjk_font: str = "AR PL SungtiL GB") -> Path:
 \widowpenalty=10000
 \setlist{leftmargin=1.6em,itemsep=4pt,topsep=3pt}
 \providecommand{\tightlist}{\setlength{\itemsep}{3pt}\setlength{\parskip}{0pt}}
-\hypersetup{pdftitle={TITLE_TEXT},pdfauthor={SOP-UQ},pdfsubject={Candidate problem statement}}
+\hypersetup{pdftitle={TITLE_TEXT},pdfauthor={SOP-UQ},pdfsubject={SOP-UQ public document}}
 \begin{document}
 \begin{center}\fontsize{15}{20}\selectfont\bfseries TITLE_TEXT\end{center}
 \vspace{2pt}
-'''.replace("CJK_FONT", cjk_font).replace("TITLE_TEXT", latex_title)
+'''.replace("CJK_FONT", cjk_font).replace("TITLE_TEXT", latex_title).replace(
+        "SOURCE_NAME", source.name
+    )
     tex = source.with_suffix(".tex")
     tex.write_text(preamble + latex_body + "\n\\end{document}\n", encoding="utf-8")
     with tempfile.TemporaryDirectory(prefix="sop-statement-") as tmp:
@@ -111,10 +110,17 @@ def render(source: Path, *, cjk_font: str = "AR PL SungtiL GB") -> Path:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", type=Path, default=Path(__file__).resolve().parents[1] / "docs/problem_statement.md")
+    docs = Path(__file__).resolve().parents[1] / "docs"
+    parser.add_argument(
+        "--source",
+        type=Path,
+        nargs="*",
+        default=[docs / "problem_statement.md", docs / "rules.md"],
+    )
     parser.add_argument("--cjk-font", default="AR PL SungtiL GB")
     args = parser.parse_args()
-    print(render(args.source, cjk_font=args.cjk_font))
+    for source in args.source:
+        print(render(source, cjk_font=args.cjk_font))
 
 
 if __name__ == "__main__":

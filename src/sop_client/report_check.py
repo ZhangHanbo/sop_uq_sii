@@ -21,9 +21,9 @@ _FACT = re.compile(
     r"(?i)(?:oracle[_ -]?(?:value|evidence|receipt)|verified[_ -]?value|"
     r"\bgold\b|核验真值|核验值|真实值|真值表)"
 )
+# Material belonging to another participant.
 _PRIVATE = re.compile(
-    r"(?i)(?:\bprivate_state\b|\bnoise_condition\b|\bdeclared_parent\b|"
-    r"\bother_participant\b|其他参加者.*(?:凭据|回执|核验))"
+    r"(?i)(?:\bother_participant\b|其他参加者.*(?:凭据|回执|核验))"
 )
 
 

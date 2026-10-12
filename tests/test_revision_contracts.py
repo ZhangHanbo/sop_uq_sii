@@ -60,7 +60,7 @@ def calibration_fixture():
 
 
 class RevisionContracts(unittest.TestCase):
-    def test_uq_and_policy_changes_preserve_fixed_initial_but_invalidate_artifacts(
+    def test_uq_and_policy_changes_preserve_fixed_initial_but_invalidate_calibration(
         self,
     ):
         cases, snapshots = calibration_fixture()
@@ -76,8 +76,8 @@ class RevisionContracts(unittest.TestCase):
             return text
 
         with tempfile.TemporaryDirectory() as tmp:
-            artifact = Path(tmp) / "calibration.json"
-            fitted.save(artifact)
+            saved = Path(tmp) / "calibration.json"
+            fitted.save(saved)
             with patch.object(Path, "read_text", revised):
                 self.assertEqual(
                     agent_contract(FakeModel.profile_hash), initial_contract
@@ -88,7 +88,7 @@ class RevisionContracts(unittest.TestCase):
                     query_contract,
                 )
                 with self.assertRaisesRegex(ValueError, "estimator implementation"):
-                    Calibrator.load(artifact)
+                    Calibrator.load(saved)
 
     def test_projection_preserves_business_identity_and_is_idempotent(self):
         receipt = {
@@ -313,7 +313,7 @@ class RevisionContracts(unittest.TestCase):
                     FakeExaminer(), {"M9": model}, tmp, policy="fixed", threshold=0.2
                 )
             # Initial evidence can be prepared, but no paid oracle may happen
-            # before an actually needed posterior artifact has been checked.
+            # before a needed post-query calibration file has been checked.
             self.assertTrue(model.calls)
             with self.assertRaisesRegex(ValueError, "Training|training"):
                 run_panel(FakeExaminer(), {"M9": model}, tmp, collect_posterior=True)

@@ -46,7 +46,7 @@ def verify_assets(profile, runtime):
             with target.open("rb") as stream:
                 sha = hashlib.file_digest(stream, "sha256").hexdigest()
             if sha != entry["sha256"] or target.stat().st_size != entry["bytes"]:
-                raise ValueError("Model artifact hash/size mismatch: " + entry["file"])
+                raise ValueError("Model file hash/size mismatch: " + entry["file"])
             verified += 1
     return {"profile_hash": digest(profile), "verified_files": verified}
 

@@ -168,14 +168,14 @@ def _check_calibrators(models, calibrators, spec, uq, *, split="train"):
                 "Calibration evaluation configuration differs; recollect and refit"
             )
         if slot not in models or model.profile_hash != models[slot].profile_hash:
-            raise ValueError("Calibration artifact belongs to another model profile")
+            raise ValueError("Calibration file belongs to another model profile")
         if model.release_id != spec["dataset_release_id"]:
             raise ValueError(
-                "Training calibration artifact belongs to another data release"
+                "Calibration file belongs to another data release"
             )
         if model.agent_contract != agent_contract(models[slot].profile_hash):
             raise ValueError(
-                "Calibration artifact belongs to another agent/prompt/projection contract"
+                "Calibration file belongs to another agent/prompt/projection contract"
             )
     if uq not in ("self_report", "disagreement") and set(calibrators) != set(models):
         raise ValueError(
@@ -397,8 +397,9 @@ def _continue_after_queries(
 ):
     """Show the oracle evidence to the agent and let it propose a final answer."""
     if not entry.get("continuation_started"):
-        # This is a solver declaration, not a change to the examiner's A0 slot.
-        # The optional static posterior artifact separately binds this solver.
+        # Record which model continues the answer. This does not change the
+        # examiner's fixed initial answer; a saved post-query calibration file
+        # also records this model and is rejected for a different one.
         snapshot["solver_profile_hash"] = model.profile_hash
         snapshot["messages"].append(
             {
