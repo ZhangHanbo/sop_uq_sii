@@ -140,8 +140,8 @@ q_i\approx P(e_i=1\mid G_i),\qquad r_i\approx P(f_i=1\mid G_i),
 
 以及决策 AUTO（采用 \(b_i\)）或 DEFER（转人工）。\(q_i\)
 估计的仍是初始答案是否出错，目标是 \(e_i\) 而不是 \(f_i\)。选择 DEFER
-时也要提交 \(b_i\) 和 \(r_i\)。结果表中 \(p_i\)、\(q_i\)、\(r_i\)
-分别对应
+时，有合法的最终答案和概率就一并提交；无法给出时，如实标记失败或缺失，按《详细规则》第
+6 节计分。结果表中 \(p_i\)、\(q_i\)、\(r_i\) 分别对应
 \texttt{p\_initial\_error}、\texttt{p\_initial\_error\_after\_queries}
 和 \texttt{p\_final\_error}。
 
@@ -155,7 +155,7 @@ q_i\approx P(e_i=1\mid G_i),\qquad r_i\approx P(f_i=1\mid G_i),
 \item
   初始答案由考官固定，不能修改；可以利用其他题目的信息，也可以在考试中更新方法。
 \item
-  一道题调用 oracle 之后，它的 \(p_i\) 不能再改。
+  本题首次成功核验之后，它的 \(p_i\) 不能再改。
 \item
   最多提交 5
   个版本；考试期间只返回''已接收''，所有考生交卷后统一公布成绩。
@@ -247,6 +247,8 @@ agent 和 baseline 的细节见《详细规则》第 7 节。
 
 每个模型分别计算两个主指标，越低越好。两项都先在每个业务域内求平均，再对三个业务域等权平均；分母是全部案例，漏交的题不会被排除。
 
+最终评估通过答辩进行，客观性能指标作为参考。考生应在报告和答辩中说明方法、实验依据和适用范围。
+
 \textbf{查询前风险的 Brier score。} 记 \(S_d\) 为业务域 \(d\)
 的测试案例集合，
 
@@ -276,12 +278,17 @@ D=\frac13\sum_{d}\frac{1}{|T_d|}\sum_{i\in T_d}L_i.
 \texttt{aircraft\_ready=true}；把没解决的客服问题判为
 \texttt{RESOLVED}。
 
+允许将需要作出 AUTO/DEFER
+决策的题全部转人工，作为一个简单的对照策略；查询前的风险仍按要求提交。
+
 有效性、记 5 的完整情况、辅助指标（NLL、ECE、AP、AURC
 等）和置信区间见《详细规则》第 6 节。
 
 \section{6. Technical report}\label{technical-report}
 
 报告围绕下面三个问题展开，附主要结果、必要的消融实验和复现方法。
+
+建议主要在训练集和验证集比较不同方法、完成消融实验，使用相同的初始答案和历史，分别记录各方法的调用和费用。正式测试中，各方法共用已经查到的信息和累计费用，因此这些结果不代表各方法分别从头运行的表现。交卷时的报告可以使用训练和验证结果；正式测试指标由考官统一计算，供答辩参考。
 
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
