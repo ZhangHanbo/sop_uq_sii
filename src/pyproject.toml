@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sop-uq-candidate"
+version = "3.0.0"
+description = "SOP-UQ student baselines, examiner/model clients, result format and optional Qwen server"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+notebook = ["notebook>=7", "ipykernel>=6"]
+model = ["torch==2.8.0", "transformers==5.19.0", "tokenizers==0.23.3", "huggingface-hub==2.2.0", "safetensors==0.8.0", "accelerate==1.15.0", "jinja2==3.1.6"]
+
+[project.scripts]
+sop-candidate = "baselines.cli:main"
+sop-qwen = "qwen_server.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["baselines*", "test_client*", "qwen_server*"]
+
+[tool.setuptools.package-data]
+baselines = ["resources/*.md", "resources/*/*.txt", "resources/*/*.json", "resources/*/*.md"]
+qwen_server = ["profiles/*.json", "runtime*.json", "requirements-model.lock.txt"]

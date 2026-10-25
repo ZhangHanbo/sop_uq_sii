@@ -1,12 +1,15 @@
-.venv/
+# Local run output, environments and caches.
+.runs/
+.venv*/
+.ipynb_checkpoints/
+__pycache__/
+.pytest_cache/
 build/
 dist/
 *.egg-info/
-__pycache__/
-.pytest_cache/
-runs/
+# Machine-specific model settings; the two templates in src/qwen_server/ are tracked.
 runtime*.json
-!examples/runtime*.json
+!src/qwen_server/runtime*.json
 *.sqlite*
 *.safetensors
 *.gguf
