@@ -1,6 +1,6 @@
 # SOP-UQ 学生项目
 
-先读 [快速上手](../docs/quickstart.pdf)，完整规则见 [测试说明](../docs/test_description.pdf)。服务协议 **3.0**，主数据格式 **2.1**。
+先读 [题面](../docs/problem_statement.pdf)（源文件 `docs/problem_statement.tex`）与 [快速上手](../docs/quickstart.pdf)。服务协议 **3.0**，主数据格式 **2.1**。
 
 ## 安装与入口
 
@@ -39,7 +39,7 @@ jupyter notebook scripts/test_example.ipynb
 | `challenge/` | 72 | 独立的边界检查集，结构相同，单独报告 |
 | `manifest.json` | — | 数据批次、行数与 SHA-256 |
 
-题目文件每题含 `schema_version`、`dataset_release_id`、`case_id`、`domain`、`inputs`；有标签划分另含 `training_split` 和 `label`。`test/initial_M9.jsonl` 的字段见测试说明第 3 节。`dev` 中标准与偏移条件各半，测试同样；单题不标注条件。
+题目文件每题含 `schema_version`、`dataset_release_id`、`case_id`、`domain`、`inputs`；有标签划分另含 `training_split` 和 `label`。`test/initial_M9.jsonl` 每行一题：`answer`（冻结的初始答案，失败时为空）、`status`、`p_error`（自报风险）、`samples`（四次采样）、`history`（工具回执与模型输出）、`messages`（不含 system 消息的对话）和 `cost` 等。`dev` 中标准与偏移条件各半，测试同样；单题不标注条件。
 
 | `domain` | 答案字段 |
 | --- | --- |

@@ -13,3 +13,12 @@ runtime*.json
 *.sqlite*
 *.safetensors
 *.gguf
+# LaTeX build files (docs/problem_statement.tex is compiled in place).
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.xdv
