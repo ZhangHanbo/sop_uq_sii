@@ -12,9 +12,16 @@
   "model_slot": "M9",
   "model_id": "Qwen/Qwen3.5-9B",
   "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
-  "backend": "transformers",
+  "backend": "vllm",
   "dtype": "bfloat16",
-  "attention": "sdpa",
+  "engine": {
+    "vllm_version": "0.32.0",
+    "prefix_caching": true,
+    "speculative_decoding": {
+      "method": "mtp",
+      "num_speculative_tokens": 2
+    }
+  },
   "files": [
     {
       "file": "chat_template.jinja",

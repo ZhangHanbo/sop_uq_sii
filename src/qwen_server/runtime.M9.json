@@ -1,6 +1,7 @@
 {
   "model_path": "/absolute/path/to/Qwen3.5-9B",
   "device": "cuda",
+  "gpu_memory_utilization": 0.9,
   "host": "127.0.0.1",
   "port": 18080
 }

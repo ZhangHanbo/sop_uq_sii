@@ -14,7 +14,7 @@ from .generation import validate_generation_policy
 def load_profile(path):
     """Read a public profile and check backend, context, thinking and decoding policy."""
     value = json.loads(Path(path).read_text())
-    if value.get("backend") not in ("transformers", "llama.cpp"):
+    if value.get("backend") not in ("vllm", "transformers", "llama.cpp"):
         raise ValueError("Unsupported model profile backend")
     context = value.get("context_limit")
     if type(context) is not int or context <= value.get("max_output_tokens", 512):

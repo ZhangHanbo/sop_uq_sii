@@ -12,7 +12,7 @@ import urllib.request
 from pathlib import Path
 
 from .assets import download_assets, load_profile, verify_assets
-from .backends import LlamaBackend, TransformersBackend
+from .backends import LlamaBackend, TransformersBackend, VllmBackend
 from .server import make_server
 
 
@@ -131,9 +131,11 @@ def main():
         if profile["backend"] == "llama.cpp" and runtime.get("launch_server"):
             runtime["upstream_url"] = "http://127.0.0.1:" + str(runtime.get("upstream_port", 18083))
             child = start_llama(runtime)
-        backend = (TransformersBackend if profile["backend"] == "transformers" else LlamaBackend)(
-            profile, runtime
-        )
+        backend = {
+            "vllm": VllmBackend,
+            "transformers": TransformersBackend,
+            "llama.cpp": LlamaBackend,
+        }[profile["backend"]](profile, runtime)
         server = make_server(
             backend,
             profile,

@@ -76,7 +76,12 @@ class ExaminerClient(HTTPClient):
         )
 
     def oracle(self, episode_id, field, phase):
-        """Read the true value of one field; returns ``{"receipt": ...}``."""
+        """Read the true value of one field; returns ``{"receipt": ...}``.
+
+        For a test case the reply also confirms the time of the case's first
+        successful oracle read (``first_oracle_at``; ``first_oracle`` is true in
+        the reply to that read). The case's p_initial_error must not change after it.
+        """
         return self.request("/oracle", {"episode_id": episode_id, "field": field, "phase": phase})
 
     def history(self, episode_id):

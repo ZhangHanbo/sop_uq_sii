@@ -1,6 +1,6 @@
 # SOP-UQ 学生项目
 
-先读 [题面](../docs/problem_statement.pdf)（源文件 `docs/problem_statement.tex`）与 [快速上手](../docs/quickstart.pdf)。服务协议 **3.0**，主数据格式 **2.1**。
+先读 [题面](docs/problem_statement.pdf)与[快速上手](docs/quickstart.pdf)。服务协议 **3.0**，主数据格式 **2.1**。
 
 ## 安装与入口
 
@@ -37,7 +37,6 @@ jupyter notebook scripts/test_example.ipynb
 | `train/dev.jsonl` | 120 | 练习、误差分析和调参 |
 | `test/cases.jsonl` | 360 | 测试输入，无标签；其中 72 题允许交互 |
 | `test/initial_M9.jsonl` | 360 | 考官冻结的初始轨迹：答案、自报风险、四次采样、工具历史与对话（所有队相同） |
-| `challenge/` | 72 | 独立的边界检查集，结构相同，单独报告 |
 | `manifest.json` | — | 数据批次、行数与 SHA-256 |
 
 题目文件每题含 `schema_version`、`dataset_release_id`、`case_id`、`domain`、`inputs`；有标签划分另含 `training_split` 和 `label`。`test/initial_M9.jsonl` 每行一题：`answer`（冻结的初始答案，失败时为空）、`status`、`p_error`（自报风险）、`samples`（四次采样）、`history`（工具回执与模型输出）、`messages`（不含 system 消息的对话）和 `cost` 等。`dev` 中标准与偏移条件各半，测试同样；单题不标注条件。
@@ -49,6 +48,20 @@ jupyter notebook scripts/test_example.ipynb
 | `customer_service` | `final_resolution_status` |
 
 严格取值与业务边界见 `src/baselines/resources/business_rules.md`，工具参数见各域 `toolspecs.json`。
+
+## 工具与 oracle
+
+`examiner.episode(case_id)` 打开一题，`examiner.tool(episode_id, name, arguments, mode)` 调用业务工具，`examiner.oracle(episode_id, field, phase)` 读取真值。每题可用的工具及参数见 `episode["view"]["tools"]`：各域 `toolspecs.json` 中的工具，外加 SOP 要求的业务动作（见各域 `amendment.txt`）。参数取自题目输入和此前的回执，流程见各域 `sop.txt`。
+
+| 业务 | 工具（有噪声的读数） | oracle 字段（phase） |
+| --- | --- | --- |
+| 危险品 | `calculate_sds_label_score`、`calculate_handling_score`、`calculate_transportation_score`、`calculate_disposal_score` 各给出一项评分，四项评分都有噪声 | `sds`、`handling`、`transportation`、`disposal`（`assessment`） |
+| 飞机部件检查 | `VerifyAircraftClearance`、`VerifyMechanicalComponents`、`VerifyElectricalSystems`、`CrossCheckSpecifications` 的结果有噪声；`ReportComponentIncident`、`ReportComponentMismatch`、`ReportCrossCheck` 据此给出报告结论；`updateMaintenanceRecord` 记录维修记录 | `aircraft_ready`、`mechanical_inspection_result`、`electrical_inspection_result`、`cross_check_response`（`assessment`） |
+| 客服排障 | 按 SOP 顺序：`validateAccount` → `getAuthenticationDetails` → `createSessionAndOpenTicket` → `checkAccountStatus`；账户停用时先走付款分支 `transferAccountsPayable` → `checkPaymentStatus` → `checkAccountSuspensionStatus`；再 `checkServiceAreaOutage` → `performTechnicalDiagnostics`（诊断）→ `executeTroubleshooting`（排障）；最后 `updateTicket` 记录结论或 `createEscalation` 升级。诊断和排障给出的 `latency`、`jitter`、`bandwidth` 有噪声 | 这三项：`pre_repair`（诊断后）或 `post_repair`（排障后） |
+
+`mode` 决定读数来源：`default` 读主数据源，可能是缓存的旧记录；`refresh`、`remeasure` 重新读主数据源，同一来源的重复读数可能相关；`independent` 读第二个独立数据源。普通调用 0.01，有噪声工具的 `independent` 读数 0.03，oracle 每个字段 0.10，同一字段再读免费。每题预算 2.00、最多 24 次工具调用和 16 次 oracle；步骤顺序不对时返回 `phase_denied`。
+
+有标签题可以不限次数地重新打开，每次都是新的练习，预算和调用次数重新计算。测试题中只有 72 道交互题可以继续调用工具和 oracle：每道测试题第一次成功的 oracle 回复带有考官记录的时间 `first_oracle_at`（这一次 `first_oracle` 为真），此后该题的 `p_initial_error` 不得再修改，由考官人工核查。
 
 ## 结果与提交
 

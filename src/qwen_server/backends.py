@@ -1,12 +1,13 @@
-"""Inference backends: Transformers (M9) and a verified llama.cpp server (M27).
+"""Inference backends: vLLM (M9), Transformers and a verified llama.cpp server (M27).
 
-Both backends render the chat template with thinking disabled, enforce the
+All backends render the chat template with thinking disabled, enforce the
 profile's context limit (prompt plus reply) and decode with its locked settings.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import urllib.request
 from pathlib import Path
 
@@ -97,6 +98,79 @@ class TransformersBackend:
             "text": self.tokenizer.decode(sequence, skip_special_tokens=True),
             "usage": {"prompt_tokens": count, "completion_tokens": len(sequence)},
             "finish_reason": "length" if len(sequence) == max_tokens else "stop",
+        }
+
+
+class VllmBackend:
+    """Local BF16 model in an in-process vLLM engine (CUDA graphs, fused kernels).
+
+    The server admits one request at a time, so the engine always runs at batch
+    size one and greedy replies are reproducible. Prompts are rendered and
+    tokenized exactly as for the Transformers backend; vLLM only sees token IDs.
+    """
+
+    def __init__(self, profile, runtime):
+        import vllm
+        from transformers import AutoConfig, AutoTokenizer
+
+        validate_generation_policy(profile)
+        engine = profile["engine"]
+        if vllm.__version__ != engine["vllm_version"]:
+            raise ValueError("vLLM version differs from public model profile")
+        self.profile, self.runtime = profile, runtime
+        self.path = str(Path(runtime["model_path"]).expanduser().resolve())
+        self.tokenizer = AutoTokenizer.from_pretrained(self.path, local_files_only=True)
+        config = AutoConfig.from_pretrained(self.path, local_files_only=True)
+        eos = config.get_text_config().eos_token_id
+        self.stop_ids = list(eos) if isinstance(eos, (list, tuple)) else [eos]
+        # In-process engine: no worker process outlives the server. vLLM's own
+        # sampler: FlashInfer's would compile CUDA code at run time (needs nvcc).
+        os.environ.setdefault("VLLM_ENABLE_V1_MULTIPROCESSING", "0")
+        os.environ.setdefault("VLLM_USE_FLASHINFER_SAMPLER", "0")
+        self.model = vllm.LLM(
+            model=self.path,
+            dtype=profile["dtype"],
+            max_model_len=profile["context_limit"],
+            max_num_seqs=1,
+            enable_prefix_caching=engine["prefix_caching"],
+            speculative_config=engine["speculative_decoding"],
+            generation_config="vllm",  # ignore the model's generation_config.json
+            language_model_only=True,
+            gpu_memory_utilization=runtime.get("gpu_memory_utilization", 0.9),
+            seed=0,
+        )
+
+    def generate(self, messages, *, sample=False, seed=0, max_tokens=512):
+        """Generate one reply; greedy unless ``sample`` is true."""
+        from vllm import SamplingParams
+
+        prompt = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=False,
+        )
+        ids = self.tokenizer(prompt, add_special_tokens=False).input_ids
+        if len(ids) + max_tokens > self.profile["context_limit"]:
+            raise ContextOverflow("Prompt plus output exceeds public context limit")
+        sampling = self.profile["sampling"]
+        params = SamplingParams(
+            max_tokens=max_tokens,
+            temperature=sampling["temperature"] if sample else 0.0,
+            top_p=sampling["top_p"] if sample else 1.0,
+            top_k=sampling["top_k"] if sample else 0,
+            seed=seed,
+            # Stop on the model config's EOS IDs, as the Transformers backend does.
+            ignore_eos=True,
+            stop_token_ids=self.stop_ids,
+            detokenize=False,
+        )
+        output = self.model.generate({"prompt_token_ids": ids}, params, use_tqdm=False)
+        sequence = list(output[0].outputs[0].token_ids)
+        return {
+            "text": self.tokenizer.decode(sequence, skip_special_tokens=True),
+            "usage": {"prompt_tokens": len(ids), "completion_tokens": len(sequence)},
+            "finish_reason": "length" if output[0].outputs[0].finish_reason == "length" else "stop",
         }
 
 
