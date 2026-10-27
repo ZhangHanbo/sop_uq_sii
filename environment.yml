@@ -1,0 +1,10 @@
+# Conda environment for the SOP-UQ student package; run these in sop_uq_candidate/:
+#   conda env create -f environment.yml
+#   conda activate sii_uq
+# The package is installed in editable mode, so code changes need no reinstall.
+name: sii_uq
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - -e ./src[notebook]

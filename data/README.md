@@ -4,15 +4,16 @@
 
 ## 安装与入口
 
-需要 Python 3.11 及以上。在 `sop_uq_candidate/` 目录：
+需要 conda（Miniconda、Miniforge 或 Anaconda）。在 `sop_uq_candidate/` 目录的 bash 或 zsh 中（Windows 请用 WSL）：
 
 ```bash
-python -m pip install -e ./src
-python -m pip install notebook
+source conda_env.sh   # 首次按 environment.yml 创建 conda 环境 sii_uq（几分钟），以后只激活
 export SOP_EXAMINER_URL=http://<考官地址>:8801   SOP_EXAMINER_TOKEN=<本队 token>
 export SOP_MODEL_URL=http://<模型地址>:18080      SOP_MODEL_TOKEN=<模型 token>
 jupyter notebook scripts/test_example.ipynb
 ```
+
+不用 conda 时需要 Python 3.11 及以上（Debian/Ubuntu 另装 `python3-venv`）：先 `python3 -m venv .venv && source .venv/bin/activate`，再 `python -m pip install -e "./src[notebook]"`。
 
 | 入口 | 内容 |
 | --- | --- |
