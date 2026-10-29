@@ -8,16 +8,18 @@
 
 ```bash
 source conda_env.sh   # 首次按 environment.yml 创建 conda 环境 sii_uq（几分钟），以后只激活
-export SOP_EXAMINER_URL=http://<考官地址>:8801   SOP_EXAMINER_TOKEN=<本队 token>
+export SOP_EXAMINER_URL=http://<考官地址>:8801   SOP_EXAMINER_TOKEN=<本队试用 token>
 export SOP_MODEL_URL=http://<模型地址>:18080      SOP_MODEL_TOKEN=<模型 token>
 jupyter notebook scripts/test_example.ipynb
 ```
+
+每队有两个 token：试用 token 用于跑 notebook 示例、熟悉流程（测试题上只能做少量工具调用和 oracle 读取，提交只检查格式、不评分、不占次数，也不影响正式台账）；正式 token 用于正式运行和提交。
 
 不用 conda 时需要 Python 3.11 及以上（Debian/Ubuntu 另装 `python3-venv`）：先 `python3 -m venv .venv && source .venv/bin/activate`，再 `python -m pip install -e "./src[notebook]"`。
 
 | 入口 | 内容 |
 | --- | --- |
-| `scripts/test_example.ipynb` | 测试 notebook：连接、手动调用工具与 oracle、baseline 作答、采集与拟合、测试运行、提交 |
+| `scripts/test_example.ipynb` | 测试 notebook：连接、手动调用工具与 oracle、baseline 作答、采集与拟合、问题 1 与问题 2 的测试运行和提交（用试用 token） |
 | `scripts/baseline_example.ipynb` | 离线比较六种风险方法与转人工阈值；自行部署 Qwen |
 | `scripts/run_test.py` | 检查并提交 `results.csv`（`--local` 在本地为有标签结果评分，`--submissions` 查看已用次数） |
 | `sop-candidate` | 命令行：`collect`、`fit`、`run`、`score`、`submit` |
@@ -56,17 +58,17 @@ jupyter notebook scripts/test_example.ipynb
 | 业务 | 工具（有噪声的读数） | oracle 字段（phase） |
 | --- | --- | --- |
 | 危险品 | `calculate_sds_label_score`、`calculate_handling_score`、`calculate_transportation_score`、`calculate_disposal_score` 各给出一项评分，四项评分都有噪声 | `sds`、`handling`、`transportation`、`disposal`（`assessment`） |
-| 飞机部件检查 | `VerifyAircraftClearance`、`VerifyMechanicalComponents`、`VerifyElectricalSystems`、`CrossCheckSpecifications` 的结果有噪声；`ReportComponentIncident`、`ReportComponentMismatch`、`ReportCrossCheck` 据此给出报告结论；`updateMaintenanceRecord` 记录维修记录 | `aircraft_ready`、`mechanical_inspection_result`、`electrical_inspection_result`、`cross_check_response`（`assessment`） |
+| 飞机部件检查 | `VerifyAircraftClearance`、`VerifyMechanicalComponents`、`VerifyElectricalSystems`、`CrossCheckSpecifications` 的结果有噪声；`ReportComponentIncident`、`ReportComponentMismatch`、`ReportCrossCheck` 返回已有的报告结论（无噪声）；`updateMaintenanceRecord` 记录维修记录 | `aircraft_ready`、`mechanical_inspection_result`、`electrical_inspection_result`、`cross_check_response`（`assessment`） |
 | 客服排障 | 按 SOP 顺序：`validateAccount` → `getAuthenticationDetails` → `createSessionAndOpenTicket` → `checkAccountStatus`；账户停用时先走付款分支 `transferAccountsPayable` → `checkPaymentStatus` → `checkAccountSuspensionStatus`；再 `checkServiceAreaOutage` → `performTechnicalDiagnostics`（诊断）→ `executeTroubleshooting`（排障）；最后 `updateTicket` 记录结论或 `createEscalation` 升级。诊断和排障给出的 `latency`、`jitter`、`bandwidth` 有噪声 | 这三项：`pre_repair`（诊断后）或 `post_repair`（排障后） |
 
-`mode` 决定读数来源：`default` 读主数据源，可能是缓存的旧记录；`refresh`、`remeasure` 重新读主数据源，同一来源的重复读数可能相关；`independent` 读第二个独立数据源。普通调用 0.01，有噪声工具的 `independent` 读数 0.03，oracle 每个字段 0.10，同一字段再读免费。每题预算 2.00、最多 24 次工具调用和 16 次 oracle；步骤顺序不对时返回 `phase_denied`。
+`mode` 决定读数来源：`default` 读主数据源，可能是缓存的旧记录；`refresh`、`remeasure` 重新读主数据源，同一来源的重复读数可能相关；`independent` 读第二个数据源，它与主数据源不一定相互独立。普通调用 0.01，有噪声工具的 `independent` 读数 0.03，oracle 每个字段 0.10，同一字段再读免费。每题预算 2.00、最多 24 次工具调用和 16 次 oracle；步骤顺序不对时返回 `phase_denied`。
 
-有标签题可以不限次数地重新打开，每次都是新的练习，预算和调用次数重新计算。测试题中只有 72 道交互题可以继续调用工具和 oracle：每道测试题第一次成功的 oracle 回复带有考官记录的时间 `first_oracle_at`（这一次 `first_oracle` 为真），此后该题的 `p_initial_error` 不得再修改，由考官人工核查。
+有标签题可以不限次数地重新打开，每次都是新的练习，预算和调用次数重新计算。测试题中只有 72 道交互题可以继续调用工具和 oracle。读取测试题的 oracle 之前须先提交一次结果；本队第一次读取测试题 oracle 后，问题 1（查询前风险 `p_initial_error`）的成绩不再更新，此后的提交只计入问题 2（交互题）。
 
 ## 结果与提交
 
 `results.csv` 每道测试题一行：`case_id, initial_answer_json, p_initial_error, mode, final_answer_json, p_initial_error_after_queries, p_final_error`。非交互题只填前三列；无答案或无概率时留空；初始答案必须是冻结答案。
 
-每队最多 5 次有效提交，每次立即返回完整评分；格式错误或与已评分文件完全相同的文件不占次数，成绩取最好的一次。测试题的工具和 oracle 费用记在本队台账中，换方法或重跑不会清零，所以比较方法请在有标签题上进行。评分反馈只用于评估自己的方法，不得用来推断测试标签。
+每队最多 5 次有效提交，每次立即返回完整评分；格式错误或与已评分文件完全相同的文件不占次数。问题 1 取本队第一次读取测试题 oracle 之前 `p_initial_error` Brier 最好的一次，问题 2 取所有提交中决策代价最低的一次。测试题的工具和 oracle 费用记在本队台账中，换方法或重跑不会清零，所以比较方法请在有标签题上进行。评分反馈只用于评估自己的方法，不得用来推断测试标签；试用 token 读到的测试题真值只用于熟悉流程，不得用于正式提交。
 
-最快的完整流程：`sop-candidate collect --policy fixed` 一次采集有标签题的初始与查询后轨迹，`sop-candidate fit` 拟合两类风险，`sop-candidate run` 生成测试结果，`python scripts/run_test.py` 提交（见快速上手）。
+最快的完整流程：`sop-candidate collect --policy fixed` 一次采集有标签题的初始与查询后轨迹，`sop-candidate fit` 拟合两类风险，`sop-candidate run --policy threshold` 生成问题 1 的测试结果并用 `python scripts/run_test.py` 提交，再用 `sop-candidate run --policy fixed` 读取 oracle、生成问题 2 的结果并提交（见快速上手）。

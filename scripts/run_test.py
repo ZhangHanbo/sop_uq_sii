@@ -48,6 +48,12 @@ def summary(report):
     return "\n".join(lines)
 
 
+def best_text(best):
+    """The best try of each problem: Problem 1 among tries before the first test oracle read."""
+    shown = [f"try {b['submission']} = {b['value']:.4f}" if b else "-" for b in best.values()]
+    return f"problem 1 (p_i Brier) {shown[0]}; problem 2 (decision loss) {shown[1]}"
+
+
 def main(argv=None):
     """Parse arguments, then submit, score locally or list tries; returns the exit code."""
     parser = argparse.ArgumentParser(
@@ -85,21 +91,30 @@ def main(argv=None):
                 report = examiner.submissions()
                 for item in report["submissions"]:
                     print(f"try {item['submission']}: {item['primary']}")
-                print("best:", report["best"], "| tries left:", report["submissions_left"])
+                print("best:", best_text(report["best"]))
+                print(
+                    "tries left:",
+                    report["submissions_left"],
+                    "| Problem 1 closed at:",
+                    report["problem1_closed_at"] or "- (still open)",
+                )
             else:
                 spec = examiner.spec()
                 cases = read_cases(args.data, ["test/cases.jsonl"])
                 check_results(read_results(args.results), cases, set(spec["interactive_ids"]))
                 report = examiner.submit(args.results)
-                if report.get("duplicate"):
-                    print(f"identical to try {report['submission']}; no try used")
+                if report.get("trial"):
+                    print("trial token: the file is valid; not scored, no try used")
                 else:
-                    print(
-                        f"try {report['submission']} scored; "
-                        f"tries left: {report['submissions_left']}"
-                    )
-                print(summary(report["report"]))
-                print("best so far:", report["best"])
+                    if report.get("duplicate"):
+                        print(f"identical to try {report['submission']}; no try used")
+                    else:
+                        print(
+                            f"try {report['submission']} scored; "
+                            f"tries left: {report['submissions_left']}"
+                        )
+                    print(summary(report["report"]))
+                    print("best so far:", best_text(report["best"]))
     except (ValueError, OSError, RemoteError) as error:
         parser.exit(1, f"run_test: {error}\n")
     if args.output:

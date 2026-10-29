@@ -78,9 +78,10 @@ class ExaminerClient(HTTPClient):
     def oracle(self, episode_id, field, phase):
         """Read the true value of one field; returns ``{"receipt": ...}``.
 
-        For a test case the reply also confirms the time of the case's first
-        successful oracle read (``first_oracle_at``; ``first_oracle`` is true in
-        the reply to that read). The case's p_initial_error must not change after it.
+        A test case's oracle needs one submitted results file first
+        (``submit_first``). The team's first test-case oracle read closes
+        Problem 1: only earlier tries count for p_initial_error. The reply also
+        gives the time of the case's first read (``first_oracle_at``).
         """
         return self.request("/oracle", {"episode_id": episode_id, "field": field, "phase": phase})
 
@@ -89,12 +90,15 @@ class ExaminerClient(HTTPClient):
         return self.request("/history/" + episode_id)
 
     def submit(self, path):
-        """Upload a results.csv file; uses one try and returns its score report."""
+        """Upload a results.csv file; uses one try and returns its score report.
+
+        With a trial token the file is only checked: no score, no try used.
+        """
         data = Path(path).read_text(encoding="utf-8-sig").encode("utf-8")
         return self.request("/submit", data, content_type="text/csv")
 
     def submissions(self):
-        """Every scored submission of this team and the best one so far."""
+        """Every submission of this team and the best try of each problem so far."""
         return self.request("/submissions")
 
 

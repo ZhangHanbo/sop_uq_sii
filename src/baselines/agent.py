@@ -21,7 +21,7 @@ TOTAL_CALL_LIMIT = 32  # main model calls including the post-query continuation
 SHARED_SAMPLES = 4  # tool-free samples drawn from the proposal's evidence
 
 # Tool errors that end the episode: retrying cannot succeed.
-TERMINAL_TOOL_ERRORS = ("budget_exhausted", "tool_limit", "noninteractive_case")
+TERMINAL_TOOL_ERRORS = ("budget_exhausted", "tool_limit", "noninteractive_case", "trial_quota")
 
 
 def canonical_hazard_class(value):

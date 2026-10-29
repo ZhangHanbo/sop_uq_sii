@@ -186,13 +186,15 @@ def run_cases(
         "dataset_release_id": spec["dataset_release_id"],
         "frozen_digest": spec.get("frozen_digest"),
     }
+    test_ids, interactive_test = set(spec["test_ids"]), set(spec["interactive_ids"])
+    if spec.get("mode") == "trial" and any(case["case_id"] in test_ids for case in cases):
+        config["mode"] = "trial"  # a trial-token test run never mixes with a formal one
     config_path = output / "config.json"
     if config_path.exists() and json.loads(config_path.read_text()) != config:
         raise ValueError(
             f"{output} holds a run with another method, model or data release; use a new output"
         )
     atomic_json(config_path, config)
-    test_ids, interactive_test = set(spec["test_ids"]), set(spec["interactive_ids"])
     method = {
         "uq": uq,
         "calibrator": calibrator,
@@ -339,6 +341,8 @@ def _query(examiner, record, snapshot, method, save):
             try:
                 receipt = examiner.oracle(record["episode_id"], field, phase)["receipt"]
             except RemoteError as exc:
+                if exc.code == "submit_first":  # the whole run needs a submission first
+                    raise ValueError(str(exc)) from None
                 snapshot["oracle_failure"] = exc.code
                 save()
                 break
